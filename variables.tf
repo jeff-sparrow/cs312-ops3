@@ -19,3 +19,9 @@ variable "my_ip" {
   description = "Local IP address for SSH access"
   type        = string
 }
+
+variable "image_tag" {
+  description = "ECR image tag to deploy"
+  type        = string
+  default     = "mc-1.21.4-v1"
+}

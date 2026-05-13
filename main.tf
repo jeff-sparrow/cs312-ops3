@@ -83,7 +83,7 @@ resource "aws_ecr_repository" "minecraft" {
 }
 
 resource "null_resource" "configure" {
-  depends_on = [aws_instance.managed]
+  depends_on = [aws_instance.managed, local_file.inventory]
 
   provisioner "local-exec" {
     command = <<-EOF
@@ -91,18 +91,21 @@ resource "null_resource" "configure" {
       ANSIBLE_HOST_KEY_CHECKING=False \
       ansible-playbook -i inventory configure.yml \
       --private-key ~/.ssh/minecraft-key.pem
+      --extra-vars "image_tag=${var.image_tag}"
     EOF
   }
 
   triggers = {
     managed_id = aws_instance.managed.id
+    image_tag  = var.image_tag
   }
 }
 
 resource "local_file" "inventory" {
   content = <<-EOF
     [minecraft_group]
-    minecraft ansible_host=${aws_instance.managed.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem
+    minecraft ansible_host=${aws_instance.managed.public_ip} \
+    ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem
   EOF
   filename = "inventory"
 }

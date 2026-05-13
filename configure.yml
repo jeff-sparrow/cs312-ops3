@@ -91,7 +91,7 @@
       when: latest_backup.stdout | trim != ""
 
     - name: Pull Minecraft image from ECR
-      shell: docker pull 339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:mc-1.21.4-v1
+      shell: docker pull 339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:{{ image_tag }}   
       changed_when: false
 
     - name: Write Docker Compose file
@@ -100,7 +100,7 @@
         content: |
           services:
             minecraft:
-              image: 339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:mc-1.21.4-v1
+              image: 339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:{{ image_tag }}
               container_name: minecraft
               restart: unless-stopped
               ports:

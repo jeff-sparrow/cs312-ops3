@@ -1,3 +1,2 @@
 [minecraft_group]
-# verify ansible host ip
-minecraft ansible_host=172.31.42.44 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem
+minecraft ansible_host=54.225.3.153 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem
