@@ -1,8 +1,3 @@
-output "control_node_public_ip" {
-  description = "Public IP of the control node: SSH here from your laptop"
-  value       = aws_instance.control.public_ip
-}
-
 output "managed_node_public_ip" {
   description = "Public IP of the managed node: Minecraft will be accessible here"
   value       = aws_instance.managed.public_ip
