@@ -1,2 +1,2 @@
 [minecraft_group]
-minecraft ansible_host=54.225.3.153 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem
+minecraft ansible_host=3.81.69.68 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem

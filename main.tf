@@ -86,13 +86,7 @@ resource "null_resource" "configure" {
   depends_on = [aws_instance.managed, local_file.inventory]
 
   provisioner "local-exec" {
-    command = <<-EOF
-      sleep 30 && \
-      ANSIBLE_HOST_KEY_CHECKING=False \
-      ansible-playbook -i inventory configure.yml \
-      --private-key ~/.ssh/minecraft-key.pem
-      --extra-vars "image_tag=${var.image_tag}"
-    EOF
+    command = "sleep 30 && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory configure.yml --private-key ~/.ssh/minecraft-key.pem --extra-vars 'image_tag=${var.image_tag}'"
   }
 
   triggers = {
@@ -102,10 +96,6 @@ resource "null_resource" "configure" {
 }
 
 resource "local_file" "inventory" {
-  content = <<-EOF
-    [minecraft_group]
-    minecraft ansible_host=${aws_instance.managed.public_ip} \
-    ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem
-  EOF
+  content  = "[minecraft_group]\nminecraft ansible_host=${aws_instance.managed.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem\n"
   filename = "inventory"
 }
