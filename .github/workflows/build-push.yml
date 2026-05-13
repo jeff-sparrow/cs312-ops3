@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  publish:
+  build-test-push:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials
@@ -34,6 +34,14 @@ jobs:
           docker tag itzg/minecraft-server:java21 \
             339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:${{ github.ref_name }}
 
+      - name: Smoke test - start container
+        run: |
+          docker run -d --name smoke \
+            -e EULA=TRUE \
+            -e TYPE=PAPER \
+            -e VERSION=1.21.4 \
+            339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:${{ github.ref_name }}
+
       - name: Smoke test - verify server started
         run: |
           for i in $(seq 1 20); do
@@ -43,7 +51,7 @@ jobs:
               docker stop smoke && docker rm smoke
               exit 0
             fi
-            echo "Attempt $i/12: waiting for server..."
+            echo "Attempt $i/20: waiting for server..."
           done
           docker logs smoke
           docker stop smoke && docker rm smoke
