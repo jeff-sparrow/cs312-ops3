@@ -17,33 +17,7 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Security Group for the control node: SSH access from your laptop
-resource "aws_security_group" "control" {
-  name        = "minecraft-control-sg"
-  description = "Control node: SSH only"
-  vpc_id      = data.aws_vpc.default.id
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "minecraft-control-sg"
-  }
-}
-
-# Security Group for the managed node: SSH from control node only, HTTP from anywhere
+# Security Group for the managed node
 resource "aws_security_group" "managed" {
   name        = "minecraft-managed-sg"
   description = "Managed node: SSH from control node, HTTP from anywhere"
@@ -54,7 +28,7 @@ resource "aws_security_group" "managed" {
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    security_groups = [aws_security_group.control.id]
+    cidr_blocks     = ["${var.my_ip}/32"]
   }
 
   ingress {
@@ -85,23 +59,9 @@ resource "aws_security_group" "managed" {
   }
 }
 
-# Control node: you SSH into this instance from your laptop
-resource "aws_instance" "control" {
-  ami                    = var.ami_id
-  instance_type          = var.control_instance_type
-  key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.control.id]
-  iam_instance_profile   = "LabInstanceProfile"
-
-  tags = {
-    Name = "minecraft-control"
-  }
-}
-
-# Managed node: the server that will run the application
 resource "aws_instance" "managed" {
   ami                    = var.ami_id
-  instance_type          = var.managed_instance_type
+  instance_type          = var.instance_type
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.managed.id]
   iam_instance_profile   = "LabInstanceProfile"
@@ -120,4 +80,29 @@ resource "aws_ecr_repository" "minecraft" {
   image_scanning_configuration {
     scan_on_push = false
   }
+}
+
+resource "null_resource" "configure" {
+  depends_on = [aws_instance.managed]
+
+  provisioner "local-exec" {
+    command = <<-EOF
+      sleep 30 && \
+      ANSIBLE_HOST_KEY_CHECKING=False \
+      ansible-playbook -i inventory configure.yml \
+      --private-key ~/.ssh/minecraft-key.pem
+    EOF
+  }
+
+  triggers = {
+    managed_id = aws_instance.managed.id
+  }
+}
+
+resource "local_file" "inventory" {
+  content = <<-EOF
+    [minecraft_group]
+    minecraft ansible_host=${aws_instance.managed.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/minecraft-key.pem
+  EOF
+  filename = "inventory"
 }
