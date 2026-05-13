@@ -1,0 +1,56 @@
+name: Publish Minecraft Image to ECR
+
+on:
+  push:
+    tags:
+      - 'mc-*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Log in to ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin \
+            339712928434.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Acquire upstream image
+        run: docker pull itzg/minecraft-server:java21
+
+      - name: Tag for ECR
+        run: |
+          docker tag itzg/minecraft-server:java21 \
+            339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:${{ github.ref_name }}
+
+      - name: Smoke test - verify server started
+        run: |
+          for i in $(seq 1 12); do
+            sleep 10
+            if docker logs smoke 2>&1 | grep -q "Done"; then
+              echo "Smoke test passed: server started successfully"
+              docker stop smoke && docker rm smoke
+              exit 0
+            fi
+            echo "Attempt $i/12: waiting for server..."
+          done
+          docker logs smoke
+          docker stop smoke && docker rm smoke
+          echo "Smoke test failed: server did not start in time"
+          exit 1
+
+      - name: Push to ECR
+        run: |
+          docker push \
+            339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:${{ github.ref_name }}

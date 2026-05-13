@@ -1,0 +1,124 @@
+---
+- name: Configure PaperMC on EC2
+  hosts: minecraft_group
+  become: true
+
+  tasks:
+    - name: Install Docker prerequisites
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+
+    - name: Add Docker GPG key
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+      args:
+        creates: /etc/apt/keyrings/docker.asc
+
+    - name: Add Docker apt repository
+      shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+
+    - name: Install Docker Engine
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker is running
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create Docker Compose directory
+      file:
+        path: /opt/minecraft
+        state: directory
+        mode: "0755"
+
+    - name: Install AWS CLI prerequisites
+      apt:
+        name: unzip
+        state: present
+
+    - name: Retrieve AWS CLI
+      shell: curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+      args:
+        creates: /tmp/awscliv2.zip
+
+    - name: Unzip AWS CLI
+      shell: unzip -q /tmp/awscliv2.zip -d /tmp/
+      args:
+        creates: /tmp/aws
+
+    - name: Install AWS CLI
+      shell: /tmp/aws/install
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Authenticate Docker to ECR
+      shell: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 339712928434.dkr.ecr.us-east-1.amazonaws.com
+      changed_when: false
+
+    - name: Check for S3 backup
+      shell: aws s3 ls s3://minecraft-backup-sparrowj/backups/ | tail -1 | awk '{print $4}'
+      register: latest_backup
+      changed_when: false
+
+    - name: Create data directory
+      file:
+        path: /opt/minecraft/data
+        state: directory
+        mode: "0755"
+
+    - name: Restore world data from S3
+      shell: |
+        aws s3 cp s3://minecraft-backup-sparrowj/backups/{{ latest_backup.stdout | trim }} /tmp/{{ latest_backup.stdout | trim }}
+        tar -xzf /tmp/{{ latest_backup.stdout | trim }} -C /opt/minecraft/data
+      when: latest_backup.stdout | trim != ""
+
+    - name: Pull Minecraft image from ECR
+      shell: docker pull 339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:mc-1.21.4-v1
+      changed_when: false
+
+    - name: Write Docker Compose file
+      copy:
+        dest: /opt/minecraft/docker-compose.yml
+        content: |
+          services:
+            minecraft:
+              image: 339712928434.dkr.ecr.us-east-1.amazonaws.com/minecraft-ecr:mc-1.21.4-v1
+              container_name: minecraft
+              restart: unless-stopped
+              ports:
+                - "25565:25565"
+                - "25575:25575"
+              environment:
+                EULA: "TRUE"
+                TYPE: PAPER
+                VERSION: "1.21.4"
+                MOTD: "sparrowj - CS312"
+                MEMORY: "1536M"
+                ENABLE_RCON: "true"
+                RCON_PORT: "25575"
+                RCON_PASSWORD: "CS312-is-awesome"
+              volumes:
+                - ./data:/data
+
+    - name: Start Minecraft stack
+      community.docker.docker_compose_v2:
+        project_src: /opt/minecraft
+        state: present
