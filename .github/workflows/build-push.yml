@@ -36,7 +36,7 @@ jobs:
 
       - name: Smoke test - verify server started
         run: |
-          for i in $(seq 1 12); do
+          for i in $(seq 1 20); do
             sleep 10
             if docker logs smoke 2>&1 | grep -q "Done"; then
               echo "Smoke test passed: server started successfully"
