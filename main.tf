@@ -88,7 +88,7 @@ resource "aws_security_group" "managed" {
 # Control node: you SSH into this instance from your laptop
 resource "aws_instance" "control" {
   ami                    = var.ami_id
-  instance_type          = var.instance_type
+  instance_type          = var.control_instance_type
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.control.id]
   iam_instance_profile   = "LabInstanceProfile"
@@ -101,7 +101,7 @@ resource "aws_instance" "control" {
 # Managed node: the server that will run the application
 resource "aws_instance" "managed" {
   ami                    = var.ami_id
-  instance_type          = var.instance_type
+  instance_type          = var.managed_instance_type
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.managed.id]
   iam_instance_profile   = "LabInstanceProfile"
