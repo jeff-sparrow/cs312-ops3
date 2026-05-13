@@ -81,9 +81,6 @@ resource "aws_ecr_repository" "minecraft" {
     scan_on_push = false
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "null_resource" "configure" {
